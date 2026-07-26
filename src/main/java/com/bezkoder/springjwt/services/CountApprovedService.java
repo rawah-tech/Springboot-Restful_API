@@ -53,7 +53,7 @@ public class CountApprovedService {
     }
 
     public List<DepartmentCount> countUpdateApprovedByDepartment() {
-        List<Object[]> results = processRepository.countApprovedByProcessDpt();
+        List<Object[]> results = processRepository.countUpdateApproveByProcessDpt();
         return results.stream()
                 .map(result -> new DepartmentCount((String) result[0], (Long) result[1]))
                 .collect(Collectors.toList());

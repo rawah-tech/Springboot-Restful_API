@@ -185,4 +185,12 @@ public class Process {
 		this.processKpi = processKpi;
 	}
 
+	public String getProcessDescription() {
+		return processDescription;
+	}
+
+	public void setProcessDescription(String processDescription) {
+		this.processDescription = processDescription;
+	}
+
 }

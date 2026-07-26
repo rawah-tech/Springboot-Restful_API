@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 
 @CrossOrigin(origins = "http://localhost:4200")
 @RestController
@@ -53,10 +52,19 @@ public class ProcessController {
 			@RequestParam("processStrategyStatus") String processStrategyStatus,
 			@RequestParam("processGmStatus") String processGmStatus,
 			@RequestParam(value = "image", required = false) MultipartFile image) throws IOException {
-		Process process = new Process(processName, processDpt, processDptSection, processDescription, processGmStatus,
-				processInput,
-				processInput, processKpi, processObjective, processOutput, processOwner,
-				image != null ? image.getBytes() : null);
+		Process process = new Process();
+		process.setProcessName(processName);
+		process.setProcessDpt(processDpt);
+		process.setProcessDptSection(processDptSection);
+		process.setProcessOwner(processOwner);
+		process.setProcessInput(processInput);
+		process.setProcessOutput(processOutput);
+		process.setProcessDescription(processDescription);
+		process.setProcessObjective(processObjective);
+		process.setProcessKpi(processKpi);
+		process.setProcessStatus(processStatus);
+		process.setProcessStrategyStatus(processStrategyStatus);
+		process.setImage(image != null ? image.getBytes() : null);
 		return processRepository.save(process);
 	}
 
@@ -85,12 +93,17 @@ public class ProcessController {
 			@RequestParam(value = "image", required = false) MultipartFile image) throws IOException {
 		Process process = processRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Process not found"));
-		if (processName != null) {
-			process.setProcessName(processName);
-		}
-		if (processDpt != null) {
-			process.setProcessDpt(processDpt);
-		}
+		process.setProcessName(processName);
+		process.setProcessDpt(processDpt);
+		process.setProcessDptSection(processDptSection);
+		process.setProcessOwner(processOwner);
+		process.setProcessInput(processInput);
+		process.setProcessOutput(processOutput);
+		process.setProcessDescription(processDescription);
+		process.setProcessObjective(processObjective);
+		process.setProcessKpi(processKpi);
+		process.setProcessStatus(processStatus);
+		process.setProcessStrategyStatus(processStrategyStatus);
 		if (image != null) {
 			process.setImage(image.getBytes());
 		}

@@ -1,0 +1,1383 @@
+{
+  "info": {
+    "name": "Process Governance API",
+    "description": "Portable local portfolio run for the Process Governance API. Run database/schema.sql and database/sample-data.sql first, start the application, select the supplied Local environment, and run this collection in order. The run creates a temporary ROLE_USER account and disposable department/process/task records, then removes the business records during cleanup. The generated account remains because the current API has no user-deletion endpoint.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 - Readiness and Authentication",
+      "item": [
+        {
+          "name": "01 - Public readiness check",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;",
+                  "const username = `reviewer${suffix}`.slice(0, 20);",
+                  "const email = `${username}@example.test`;",
+                  "const password = `Demo-${suffix}!`.slice(0, 40);",
+                  "",
+                  "pm.environment.set('generatedUsername', username);",
+                  "pm.environment.set('generatedEmail', email);",
+                  "pm.environment.set('generatedPassword', password);",
+                  "['accessToken', 'departmentId', 'processId', 'taskId'].forEach((key) => {",
+                  "  pm.environment.set(key, '');",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Public readiness response is present', () => {",
+                  "  pm.expect(pm.response.text()).to.eql('Public Content.');",
+                  "});",
+                  "pm.test('Generated credentials satisfy API validation limits', () => {",
+                  "  const username = pm.environment.get('generatedUsername');",
+                  "  const password = pm.environment.get('generatedPassword');",
+                  "  pm.expect(username.length).to.be.within(3, 20);",
+                  "  pm.expect(password.length).to.be.within(6, 40);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/test/all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "all"
+              ]
+            },
+            "description": "Public readiness endpoint. Its pre-request script initializes unique run credentials and clears any token or resource IDs left by a prior run."
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Sign up generated user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Signup confirms registration', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.eql('User registered successfully!');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{generatedUsername}}\",\n  \"email\": \"{{generatedEmail}}\",\n  \"password\": \"{{generatedPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "signup"
+              ]
+            },
+            "description": "Creates a synthetic local user. No role is requested; public signup assigns ROLE_USER in the current implementation."
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Sign in generated user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Signin returns an access token', () => {",
+                  "  pm.expect(body.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Signin returns ROLE_USER', () => {",
+                  "  pm.expect(body.roles).to.be.an('array').that.includes('ROLE_USER');",
+                  "});",
+                  "if (body.accessToken) {",
+                  "  pm.environment.set('accessToken', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{generatedUsername}}\",\n  \"password\": \"{{generatedPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "signin"
+              ]
+            },
+            "description": "Authenticates the generated user and saves accessToken for collection-level Bearer authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Authenticated user check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ROLE_USER endpoint is accessible', () => {",
+                  "  pm.expect(pm.response.text()).to.eql('User Content.');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/test/user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "user"
+              ]
+            },
+            "description": "Checks the method-level ROLE_USER authorization using the saved JWT."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Departments",
+      "item": [
+        {
+          "name": "05 - List departments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is a department array', () => {",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "06 - Create department",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Created department has an ID and expected fields', () => {",
+                  "  pm.expect(body.id).to.be.a('number');",
+                  "  pm.expect(body.dptName).to.include('Reviewer Demo Department');",
+                  "  pm.expect(body.numProcesses).to.eql(0);",
+                  "});",
+                  "if (body.id !== undefined && body.id !== null) {",
+                  "  pm.environment.set('departmentId', String(body.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dptName\": \"Reviewer Demo Department {{generatedUsername}}\",\n  \"dptSection\": \"Portfolio Review\",\n  \"numProcesses\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/departments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "07 - Get created department",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returned department matches saved ID', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('departmentId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/departments/{{departmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments",
+                "{{departmentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "08 - Update created department",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Department fields were updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('departmentId'));",
+                  "  pm.expect(body.dptSection).to.eql('Portfolio Review Updated');",
+                  "  pm.expect(body.numProcesses).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dptName\": \"Reviewer Demo Department {{generatedUsername}}\",\n  \"dptSection\": \"Portfolio Review Updated\",\n  \"numProcesses\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/departments/{{departmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments",
+                "{{departmentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Processes and Tasks",
+      "item": [
+        {
+          "name": "09 - Create process",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Created process has an ID and mapped fields', () => {",
+                  "  pm.expect(body.id).to.be.a('number');",
+                  "  pm.expect(body.processName).to.include('Reviewer Demo Process');",
+                  "  pm.expect(body.processStatus).to.eql('For Review');",
+                  "  pm.expect(body.processStrategyStatus).to.eql('Awaiting portfolio review');",
+                  "});",
+                  "if (body.id !== undefined && body.id !== null) {",
+                  "  pm.environment.set('processId', String(body.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "processName",
+                  "value": "Reviewer Demo Process {{generatedUsername}}",
+                  "type": "text"
+                },
+                {
+                  "key": "processDpt",
+                  "value": "Reviewer Demo Department {{generatedUsername}}",
+                  "type": "text"
+                },
+                {
+                  "key": "processDptSection",
+                  "value": "Portfolio Review Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "processOwner",
+                  "value": "Portfolio Review Team",
+                  "type": "text"
+                },
+                {
+                  "key": "processInput",
+                  "value": "Synthetic review request",
+                  "type": "text"
+                },
+                {
+                  "key": "processOutput",
+                  "value": "Synthetic reviewed record",
+                  "type": "text"
+                },
+                {
+                  "key": "processDescription",
+                  "value": "Disposable process created by the portable Postman run",
+                  "type": "text"
+                },
+                {
+                  "key": "processObjective",
+                  "value": "Demonstrate the process lifecycle",
+                  "type": "text"
+                },
+                {
+                  "key": "processKpi",
+                  "value": "Review completed within five working days",
+                  "type": "text"
+                },
+                {
+                  "key": "processStatus",
+                  "value": "For Review",
+                  "type": "text"
+                },
+                {
+                  "key": "processStrategyStatus",
+                  "value": "Awaiting portfolio review",
+                  "type": "text"
+                },
+                {
+                  "key": "processGmStatus",
+                  "value": "Controller-required demo value",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process"
+              ]
+            },
+            "description": "Multipart request without the optional image. processGmStatus is required by ProcessController but is currently ignored and is not persisted. Do not set a Content-Type header manually; Postman supplies the multipart boundary."
+          },
+          "response": []
+        },
+        {
+          "name": "10 - Get created process",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returned process matches saved ID', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('processId'));",
+                  "  pm.expect(body.processStatus).to.eql('For Review');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/{{processId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "{{processId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "11 - Update created process",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Process fields were updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('processId'));",
+                  "  pm.expect(body.processStatus).to.eql('For Update');",
+                  "  pm.expect(body.processStrategyStatus).to.eql('Update requested by portfolio review');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "processName",
+                  "value": "Reviewer Demo Process {{generatedUsername}}",
+                  "type": "text"
+                },
+                {
+                  "key": "processDpt",
+                  "value": "Reviewer Demo Department {{generatedUsername}}",
+                  "type": "text"
+                },
+                {
+                  "key": "processDptSection",
+                  "value": "Portfolio Review Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "processOwner",
+                  "value": "Portfolio Review Team",
+                  "type": "text"
+                },
+                {
+                  "key": "processInput",
+                  "value": "Synthetic reviewer feedback",
+                  "type": "text"
+                },
+                {
+                  "key": "processOutput",
+                  "value": "Synthetic update request",
+                  "type": "text"
+                },
+                {
+                  "key": "processDescription",
+                  "value": "Disposable process updated by the portable Postman run",
+                  "type": "text"
+                },
+                {
+                  "key": "processObjective",
+                  "value": "Demonstrate a controlled process update",
+                  "type": "text"
+                },
+                {
+                  "key": "processKpi",
+                  "value": "Update completed within five working days",
+                  "type": "text"
+                },
+                {
+                  "key": "processStatus",
+                  "value": "For Update",
+                  "type": "text"
+                },
+                {
+                  "key": "processStrategyStatus",
+                  "value": "Update requested by portfolio review",
+                  "type": "text"
+                },
+                {
+                  "key": "processGmStatus",
+                  "value": "Controller-required updated demo value",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/{{processId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "{{processId}}"
+              ]
+            },
+            "description": "Multipart update without the optional image. processGmStatus is required by ProcessController but is currently ignored and is not persisted. Do not set a Content-Type header manually; Postman supplies the multipart boundary."
+          },
+          "response": []
+        },
+        {
+          "name": "12 - Create process tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Created task list has IDs and expected fields', () => {",
+                  "  pm.expect(body).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body[0].id).to.be.a('number');",
+                  "  pm.expect(body[0].taskName).to.eql('Review synthetic process');",
+                  "});",
+                  "if (body.length && body[0].id !== undefined && body[0].id !== null) {",
+                  "  pm.environment.set('taskId', String(body[0].id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"taskName\": \"Review synthetic process\",\n    \"taskDescription\": \"Review the disposable process record created in this run.\",\n    \"taskWla\": \"Two working days\",\n    \"taskOwner\": \"Portfolio Review Team\"\n  },\n  {\n    \"taskName\": \"Record synthetic outcome\",\n    \"taskDescription\": \"Record a fictional review outcome for demonstration.\",\n    \"taskWla\": \"One working day\",\n    \"taskOwner\": \"Portfolio Review Team\"\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/{{processId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "{{processId}}",
+                "tasks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "13 - List tasks for process",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Task list contains the saved task ID', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "  pm.expect(body.map((task) => String(task.id))).to.include(pm.environment.get('taskId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/{{processId}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "{{processId}}",
+                "tasks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14 - Get created task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returned task matches saved ID', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('taskId'));",
+                  "  pm.expect(body.taskName).to.eql('Review synthetic process');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "15 - Update created task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Task fields were updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.environment.get('taskId'));",
+                  "  pm.expect(body.taskName).to.eql('Review synthetic process - updated');",
+                  "  pm.expect(body.taskWla).to.eql('Three working days');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taskName\": \"Review synthetic process - updated\",\n  \"taskDescription\": \"Review the disposable process record and record observations.\",\n  \"taskWla\": \"Three working days\",\n  \"taskOwner\": \"Portfolio Review Team\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Process Status Filters",
+      "description": "The path capitalization follows ProcessController exactly.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const expectedStatuses = {",
+              "  '16.1 - Filter For Review': 'For Review',",
+              "  '16.2 - Filter For Update': 'For Update',",
+              "  '16.3 - Filter For Update Approve': 'For Update Approve',",
+              "  '16.4 - Filter Approved By IC': 'Approved By IC',",
+              "  '16.5 - Filter Approved By Strategy': 'Approved By Strategy',",
+              "  '16.6 - Filter Approved By GM': 'Approved By GM'",
+              "};",
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response contains only the requested process status', () => {",
+              "  const body = pm.response.json();",
+              "  const expectedStatus = expectedStatuses[pm.info.requestName];",
+              "  pm.expect(body).to.be.an('array');",
+              "  pm.expect(body.every((process) => process.processStatus === expectedStatus)).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "16.1 - Filter For Review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/forReview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "forReview"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.2 - Filter For Update",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/forUpdate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "forUpdate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.3 - Filter For Update Approve",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/forUpdateApprove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "forUpdateApprove"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.4 - Filter Approved By IC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/IcApprove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "IcApprove"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.5 - Filter Approved By Strategy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/StrategyApprove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "StrategyApprove"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16.6 - Filter Approved By GM",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/GmApprove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "GmApprove"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Status Counts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response is a non-negative count', () => {",
+              "  const count = pm.response.json();",
+              "  pm.expect(count).to.be.a('number');",
+              "  pm.expect(count).to.be.at.least(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "17.1 - Count Approved By Strategy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-st-approved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-st-approved"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17.2 - Count Approved By GM",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-gm-approved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-gm-approved"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17.3 - Count Approved By IC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-ic-approved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-ic-approved"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17.4 - Count For Update Approve",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-update-approved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-update-approved"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17.5 - Count For Update",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-update",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-update"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17.6 - Count For Review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/count-all-review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "count-all-review"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Department Reports",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response is a department-count array', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.be.an('array');",
+              "  body.forEach((row) => {",
+              "    pm.expect(row).to.have.property('department');",
+              "    pm.expect(row.count).to.be.a('number');",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "18.1 - IC approvals by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/ic",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "ic"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.2 - Reviews by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "review"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.3 - Strategy approvals by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/st",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "st"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.4 - GM approvals by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/gm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "gm"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.5 - Update approvals by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/updateApprove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "updateApprove"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18.6 - Updates by department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/approved/update",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approved",
+                "update"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Cleanup",
+      "item": [
+        {
+          "name": "19 - Delete saved task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "description": "Deletes the first task saved in taskId. The second task created by the run is removed by process cascade deletion in the next request."
+          },
+          "response": []
+        },
+        {
+          "name": "20 - Delete created process",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Process deletion is confirmed', () => {",
+                  "  pm.expect(pm.response.json().deleted).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/process/{{processId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "process",
+                "{{processId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "21 - Delete created department",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Department deletion is confirmed', () => {",
+                  "  pm.expect(pm.response.json().deleted).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/departments/{{departmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "departments",
+                "{{departmentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
